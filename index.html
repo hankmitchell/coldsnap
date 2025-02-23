@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<style>
+    * {
+        font-family: 'Segoe UI', sans-serif;
+    }
+
+    .bbtn {
+
+        border-radius: 104px;
+        padding: 52px;
+        border: 0;
+        color: white;
+        line-height: 20px;
+        background: rgb(22, 22, 22);
+        color: white;
+    }
+</style>
+
+<body>
+    <div style="max-width: 900px; margin: auto;">
+        <div id="main"></div>
+        <div><textarea name="" id="jj" style="width:50%;height:400px;opacity: 0.1;"></textarea>
+            <br><button onclick='save()' class="bbtn">download</button>
+        </div>
+    </div>
+
+    <script>
+
+        function gid(id) {
+            return (document.getElementById(id));
+        }
+
+        if (location.href.match(/\?/)) {
+            window.f = location.href.replace(/[\s\S]+=/ig, '');
+        }
+
+        // 001 002 003 314 005 006
+        var services = `gate,filter,greasetrap,boiler,chiller,minisplit,extinguisher,light,ballast,panel,toilet,urinal,sink,door,backflow,exhaustfan,other`.split(",");
+        var tax = `assetID,FacID,building,floor,roomID,description,defects,note`.split(",");
+
+        function addAsset() {
+            var out = '';
+            for (let a of tax) {
+                out += `<div >${a.trim()}: <input onkeyup="rememberChoices()" class="assetField" id="${a.trim()}"></div>\n`;
+            }
+            out += `<div><button  class="bbtn" onclick="saveAsset()">save asset in id ${f}</button></div>`;
+            main.outerHTML += `<div id="adda">${out}</div>`;
+            if (window.f) {
+                gid('FacID').value = f;
+            }
+            popChoice();
+            gid('addAssetbtn').outerHTML = '';
+        }
+
+
+        function buildAllAssets() {
+            window.allAssets = {};
+            for (let a of j) {
+                for (let b of a.assets) {
+                    if (b.uid) {
+                        allAssets[b.uid] = b;
+                    }
+                }
+            }
+            console.log(allAssets);
+        }
+
+
+
+        function updateAsset(uid) {
+            // updateAsset('VnqcxRghmsCf')
+            var out = '';
+            for (let a in allAssets[uid]) {
+                if (a !== 'uid') {
+                    out += `<div >${a}: <input class="assetField ${uid}" id="${a}" value="${allAssets[uid][a]}"></div>`;
+                }
+            }
+            out += `<div><button  class="bbtn" onclick="saveuid('${uid}')">save changes</button></div>`;
+            gid('main').innerHTML = out;
+        }
+
+        function saveuid(uid) {
+            // determine the facility and update the asset
+            var asset = {};
+            if (!f || !obj) {
+                alert('no FacID');
+                return;
+            }
+            gid('main').innerHTML = JSON.stringify(obj);
+        }
+
+        function saveAsset() {
+            if (!f || !obj) {
+                alert('no FacID');
+                return;
+            }
+            var asset = {};
+            for (let a of document.getElementsByClassName("assetField")) {
+                asset[a.id] = a.value.trim();
+            }
+            if (!asset.uid) {
+                asset.uid = random2(12);
+            }
+            obj.assets.push(asset);
+            console.log(obj);
+            go();
+            sync();
+            gid('adda').innerHTML = ``;
+            gid('main').innerHTML = `<div>Asset Saved. </div>
+            <div><button onclick="location.reload()">Reload</button></div>`;
+        }
+        var out = '';
+
+        function delAsset(aid) {
+            var tempArr = [];
+            var FacID = aid.split(";")[0];
+            var assetID = aid.split(";")[1];
+            for (let a of j) {
+                if (a.FacID == FacID) {
+                    var arr = [];
+                    for (let b of a.assets) {
+                        if (b.assetID !== assetID) {
+                            arr.push(b);
+                        }
+                    }
+                    a.assets = arr;
+                }
+                tempArr.push(a);
+            }
+            window.j = tempArr;
+            go();
+        }
+
+        fetch(`fac.json?id=${random2(14)}`)
+            .then(r => {
+                return r.text()
+            })
+            .then(a => {
+                window.j = JSON.parse(a);
+                buildAllAssets();
+                var out = '';
+                for (let a of j) {
+                    out += `<div class="sitelist"><a href="?load=${a.FacID}">${a.FacID}</a> ${a.Name} Assets: ${a.assets.length}</div>`;
+                    if (!a.assets) {
+                        a.assets = [];
+                    }
+                }
+                console.log(j);
+                if (window.f) {
+                    out = '';
+                    for (let a of j) {
+                        if (a.FacID == f) {
+                            window.obj = a;
+                            for (let y in a) {
+                                if (y !== "assets") {
+                                    out += `<div><b>${y}</b>: ${a[y]}</div>`;
+                                }
+                            }
+                            if (obj.assets.length > 0) {
+                                var l = 'Assets: ';
+                                for (let h of obj.assets) {
+                                    l += `<div><a href="javascript://" title="view details for ${h.assetID}" onclick="updateAsset('${h.uid}')">${h.assetID}</a> <button style="color:red" onclick="delAsset('${f};${h.uid}')" title="remove ${h.assetID}">delete</button> <button onclick="window.open('scan/?s=${h.uid}')">Go to reporting page</button></div> `;
+                                }
+                                out += l;
+                            }
+                        }
+                    }
+                    out += `<div><button class="bbtn" id="addAssetbtn" onclick='addAsset()'>add asset to ${f}</button></div>`;
+                }
+                main.innerHTML = out;
+                go();
+            });
+
+        function go() {
+            gid("jj").value = JSON.stringify(j).replace(/,|\{|\}|\]|\[/ig, "$&\n");
+        }
+
+        function random2(length) {
+            var r = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+            shuffle(r);
+            var o = '';
+            for (var i = 0; i < length; i++) {
+                o += r[i];
+            }
+            return (o);
+        }
+
+        function shuffle(a) {
+            var c = a.length, t, r;
+            while (0 !== c) {
+                r = Math.floor(Math.random() * c);
+                c -= 1;
+                t = a[c];
+                a[c] = a[r];
+                a[r] = t;
+            } return a;
+        }
+
+        function save() {
+            var d = new Date().toLocaleString().replace(/[^0-9a-z]+/ig, '-');
+            var n = Date.parse(new Date());
+            var text = JSON.stringify(j);
+            var m = [];
+            m[0] = text;
+            var myBlob = new Blob(m, { type: 'text/html' });
+            var blobUrl = URL.createObjectURL(myBlob);
+            var link = document.createElement("a");
+            link.href = blobUrl;
+            link.download = d + ".json";
+            link.click();
+        }
+        function sync() {
+            const fd = new FormData();
+            fd.append('payload', JSON.stringify(j));
+
+            const options = {
+                method: 'POST',
+                //mode: 'no-cors',
+                body: fd
+            };
+            fetch(`sync.php`, options)
+                .then(r => {
+                    return r.text()
+                })
+                .then(contents => {
+                    console.log(contents);
+                });
+        }
+        window.geoGPS = `39.3489 -76.5712`; // set default
+        function showPosition(position) {
+            // needs to be "https" or "file" context
+            window.geolocationLong = Math.floor(position.coords.longitude * 10000) / 10000;
+            window.geolocationLat = Math.floor(position.coords.latitude * 10000) / 10000;
+            window.geoGPS = `${geolocationLat} ${geolocationLong}`;
+            console.log(geoGPS);
+        }
+        navigator.geolocation.getCurrentPosition(showPosition);
+
+        function rememberChoices() {
+            var rcobj = {};
+            for (let a of document.getElementsByClassName('assetField')) {
+                rcobj[a.id] = a.value.trim();
+            }
+            localStorage.rememberAssetFields = JSON.stringify(rcobj);
+        }
+        function popChoice() {
+            if (localStorage.rememberAssetFields) {
+                // lcalStorage.rememberAssetFields = '{"assetID":"FCU89777","FacID":"VA011","building":"1","floor":"1","roomID":"T118","description":"Fan Coil Unit","defects":"","note":""}'
+                var rcobj = JSON.parse(localStorage.rememberAssetFields);
+                for (let a in rcobj) {
+                    try {
+                        gid(a).value = rcobj[a].trim();
+                    } catch (e) { };
+                }
+            }
+        }
+    </script>
+
+
+
+</body>
+
+</html>
