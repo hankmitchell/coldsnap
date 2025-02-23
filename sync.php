@@ -12,6 +12,5 @@ if ($payload) {
 
 // assetReport
 if ($assetReport) {
-
-    file_put_contents("assetReport-$uid-$timestamp.json", $assetReport);
+    file_put_contents("reports/assetReport-$uid-$timestamp.json", $assetReport);
 }
